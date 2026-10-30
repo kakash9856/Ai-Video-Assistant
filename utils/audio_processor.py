@@ -12,19 +12,29 @@ FFMPEG_PATH = (
     r"C:\Users\kakas\AppData\Local\Microsoft\WinGet\Packages"
     r"\Gyan.FFmpeg.Shared_Microsoft.Winget.Source_8wekyb3d8bbwe"
     r"\ffmpeg-9.0.2-full_build-shared\bin"
-)
+)def download_youtube_audio(url):
 
-def download_youtube_audio(url):
+    import os
+    import yt_dlp
 
     os.makedirs("downloads", exist_ok=True)
 
     ydl_opts = {
         "format": "bestaudio/best",
-
-        # Exact FFmpeg folder
         "ffmpeg_location": FFMPEG_PATH,
+        "outtmpl": "downloads/%(id)s.%(ext)s",
 
-        "outtmpl": "downloads/%(title)s.%(ext)s",
+        "noplaylist": True,
+        "retries": 3,
+        "fragment_retries": 3,
+
+        "http_headers": {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/131.0.0.0 Safari/537.36"
+            )
+        },
 
         "postprocessors": [
             {
@@ -37,7 +47,10 @@ def download_youtube_audio(url):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
 
-        return ydl.prepare_filename(info).rsplit(".", 1)[0] + ".wav"
+        return os.path.join(
+            "downloads",
+            f"{info['id']}.wav"
+        )
 
 def convert_to_wav(input_path: str) -> str:
     """Convert any audio/video file to WAV format using pydub."""
