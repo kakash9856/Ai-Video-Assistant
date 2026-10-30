@@ -2,25 +2,36 @@
 import yt_dlp
 from pydub import AudioSegment
 import os
+import shutil
 
 # Download folder
 DOWNLOAD_DIR = "downloades"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# FFmpeg and FFprobe paths
-FFMPEG_PATH = (
-    r"C:\Users\kakas\AppData\Local\Microsoft\WinGet\Packages"
-    r"\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe"
-    r"\ffmpeg-9.0.2-full_build\bin\ffmpeg.exe"
-)
+# Automatically detect FFmpeg (Windows and Streamlit Cloud)
+FFMPEG_PATH = shutil.which("ffmpeg")
+FFPROBE_PATH = shutil.which("ffprobe")
 
-FFPROBE_PATH = FFMPEG_PATH.replace("ffmpeg.exe", "ffprobe.exe")
+# Windows fallback
+if not FFMPEG_PATH:
+    WINDOWS_FFMPEG = (
+        r"C:\Users\kakas\AppData\Local\Microsoft\WinGet\Packages"
+        r"\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe"
+        r"\ffmpeg-9.0.2-full_build\bin\ffmpeg.exe"
+    )
 
-# Configure FFmpeg for Pydub
-AudioSegment.converter = FFMPEG_PATH
+    if os.path.exists(WINDOWS_FFMPEG):
+        FFMPEG_PATH = WINDOWS_FFMPEG
+        FFPROBE_PATH = WINDOWS_FFMPEG.replace(
+            "ffmpeg.exe", "ffprobe.exe"
+        )
 
-print("FFmpeg found:", FFMPEG_PATH)
-print("FFprobe found:", FFPROBE_PATH)
+# Configure Pydub
+if FFMPEG_PATH:
+    AudioSegment.converter = FFMPEG_PATH
+
+print("FFmpeg:", FFMPEG_PATH)
+print("FFprobe:", FFPROBE_PATH)
 
 
 def download_youtube_audio(url):
@@ -29,37 +40,56 @@ def download_youtube_audio(url):
 
     ydl_opts = {
         "format": "bestaudio/best",
-        "outtmpl": f"{DOWNLOAD_DIR}/%(id)s.%(ext)s",
+        "outtmpl": os.path.join(
+            DOWNLOAD_DIR, "%(id)s.%(ext)s"
+        ),
         "noplaylist": True,
+        "quiet": False,
+        "retries": 3,
+        "fragment_retries": 3,
+        "socket_timeout": 30,
+    }
 
-        "js_runtimes": {
-            "deno": {}
-        },
+    # Add FFmpeg only if available
+    if FFMPEG_PATH:
+        ydl_opts["ffmpeg_location"] = FFMPEG_PATH
 
-        "remote_components": ["ejs:github"],
-
-        "ffmpeg_location": os.path.dirname(FFMPEG_PATH),
-
-        "postprocessors": [
+        ydl_opts["postprocessors"] = [
             {
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "wav",
             }
-        ],
-    }
+        ]
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=True)
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
 
-    return os.path.join(
-        DOWNLOAD_DIR,
-        f"{info['id']}.wav"
-    )
+        video_id = info["id"]
+
+        if FFMPEG_PATH:
+            audio_path = os.path.join(
+                DOWNLOAD_DIR, f"{video_id}.wav"
+            )
+        else:
+            audio_path = ydl.prepare_filename(info)
+
+        if not os.path.exists(audio_path):
+            raise FileNotFoundError(
+                f"Audio file not found: {audio_path}"
+            )
+
+        return audio_path
+
+    except Exception as e:
+        raise Exception(f"YouTube download failed: {e}")
 
 
 def convert_to_wav(input_path: str) -> str:
 
-    output_path = os.path.splitext(input_path)[0] + "_converted.wav"
+    output_path = (
+        os.path.splitext(input_path)[0] + "_converted.wav"
+    )
 
     audio = AudioSegment.from_file(input_path)
 
@@ -70,7 +100,7 @@ def convert_to_wav(input_path: str) -> str:
     return output_path
 
 
-def chunk_audio(wav_path: str, chunk_minutes: int = 10) -> list:
+def chunk_audio(wav_path: str, chunk_minutes: int = 5) -> list:
 
     audio = AudioSegment.from_wav(wav_path)
 
