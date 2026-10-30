@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+.streamlit/secrets.toml
+downloads/
+downloades/
+uploads/
+chroma_db/
+*.db
+*.sqlite3
+tempCodeRunnerFile.py
