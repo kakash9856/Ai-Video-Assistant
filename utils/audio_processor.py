@@ -2,6 +2,15 @@ import yt_dlp
 from pydub import AudioSegment
 import os
 
+import shutil
+
+FFMPEG_PATH = shutil.which("ffmpeg")
+
+if FFMPEG_PATH:
+    print("FFmpeg found:", FFMPEG_PATH)
+else:
+    print("FFmpeg not found!")
+
 DOWNLOAD_DIR = 'downloades'
 os.makedirs(DOWNLOAD_DIR,exist_ok = True)
 
@@ -15,27 +24,25 @@ FFMPEG_PATH = (
 )
 def download_youtube_audio(url):
 
-    import os
-    import yt_dlp
-
-    os.makedirs("downloads", exist_ok=True)
+    os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
     ydl_opts = {
         "format": "bestaudio/best",
-        "ffmpeg_location": FFMPEG_PATH,
-        "outtmpl": "downloads/%(id)s.%(ext)s",
-
+        "outtmpl": f"{DOWNLOAD_DIR}/%(id)s.%(ext)s",
         "noplaylist": True,
+
+        "remote_components": {
+            "ejs": "github"
+        },
+
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["default"]
+            }
+        },
+
         "retries": 3,
         "fragment_retries": 3,
-
-        "http_headers": {
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/131.0.0.0 Safari/537.36"
-            )
-        },
 
         "postprocessors": [
             {
@@ -48,10 +55,10 @@ def download_youtube_audio(url):
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
 
-        return os.path.join(
-            "downloads",
-            f"{info['id']}.wav"
-        )
+    return os.path.join(
+        DOWNLOAD_DIR,
+        f"{info['id']}.wav"
+    )
 
 def convert_to_wav(input_path: str) -> str:
     """Convert any audio/video file to WAV format using pydub."""
