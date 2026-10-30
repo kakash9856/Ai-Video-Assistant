@@ -12,7 +12,8 @@ FFMPEG_PATH = (
     r"C:\Users\kakas\AppData\Local\Microsoft\WinGet\Packages"
     r"\Gyan.FFmpeg.Shared_Microsoft.Winget.Source_8wekyb3d8bbwe"
     r"\ffmpeg-9.0.2-full_build-shared\bin"
-)def download_youtube_audio(url):
+)
+def download_youtube_audio(url):
 
     import os
     import yt_dlp
